@@ -197,14 +197,14 @@ class BittrexAPI(object):
         return self._query(WITHDRAW, params, public=False)
 
 
-def runner(*args):
+def runner(order, market):
     """
     Simple runner for the bittrex api methods.
     """
     bittrex = BittrexAPI(API_KEY, API_SECRET, raw=True)
-    if len(sys.argv) > 1:
-        return getattr(bittrex, sys.argv[1])(*sys.argv[2:])
-    return getattr(bittrex, sys.argv[1])()
+    if market != 0:
+        return getattr(bittrex, order)(market)
+    return getattr(bittrex, order)()
 
 
 def usage():
