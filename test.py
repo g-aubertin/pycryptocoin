@@ -5,6 +5,16 @@ import bittrex, json
 print bittrex.API_KEY
 print bittrex.API_SECRET
 
+class bcolors:
+        HEADER = '\033[95m'
+        OKBLUE = '\033[94m'
+        OKGREEN = '\033[92m'
+        WARNING = '\033[93m'
+        FAIL = '\033[91m'
+        ENDC = '\033[0m'
+        BOLD = '\033[1m'
+        UNDERLINE = '\033[4m'
+
 # simple test to get balance
 response = bittrex.runner("getbalances", 0)
 parsed_balance = json.loads(response)
@@ -25,12 +35,19 @@ for x in parsed_balance["result"][:]:
 
     print "COIN :", x["Currency"], "BALANCE :", x["Balance"]
     print "current price :", parsed_market["result"][0]["Last"]
+
     try:
-        parsed_order["result"][0]["PricePerUnit"]
-        print  "buy price :", parsed_order["result"][0]["PricePerUnit"]
-        print "evolution :", (parsed_market["result"][0]["Last"] - parsed_order["result"][0]["PricePerUnit"]) / parsed_order["result"][0]["PricePerUnit"] * 100
+        buy_price = str(parsed_order["result"][0]["PricePerUnit"])
+        evolution = str((parsed_market["result"][0]["Last"] - parsed_order["result"][0]["PricePerUnit"]) / parsed_order["result"][0]["PricePerUnit"] * 100)
+
+        print "buy price : " + buy_price
+        if float(evolution) > 0:
+            print bcolors.OKGREEN + "gain :" + evolution + bcolors.ENDC
+        else :
+            print bcolors.FAIL + "gain :" + evolution + bcolors.ENDC
+            
     except:
-        print "no buy price"
+            print "no buy price"
     print "\n"
 
 # todo :
