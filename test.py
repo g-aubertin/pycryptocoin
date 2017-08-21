@@ -5,6 +5,8 @@ import bittrex, json
 print bittrex.API_KEY
 print bittrex.API_SECRET
 
+coinlist = []
+
 class bcolors:
         HEADER = '\033[95m'
         OKBLUE = '\033[94m'
@@ -15,46 +17,73 @@ class bcolors:
         BOLD = '\033[1m'
         UNDERLINE = '\033[4m'
 
-# simple test to get balance
+class coin:
+        """a coin:
+
+    Attributes:
+        name: coin name.
+        balance: current balance in wallet.
+        current_price: current price on the market
+        orders: list of dictionnaries, each discribing a buy or a sell
+    """
+
+        def __init__(self, name, balance):
+                self.name = name
+                self.balance = float(balance)
+                self.orders = []
+                self.current_price = 0.0
+
+        def print_gain(self):
+
+                gain = None
+                # get latest LIMIT_BUY
+                for order in self.orders:
+                        if order["OrderType"] == "LIMIT_BUY":
+                                buy_price = float(order["PricePerUnit"])
+                                gain = (self.current_price - buy_price) / buy_price * 100
+
+                                if float(gain) > 0:
+                                        print bcolors.OKGREEN + self.name + " : " + str(gain) + bcolors.ENDC
+                                else :
+                                        print bcolors.FAIL + self.name + " : " + str(gain) + bcolors.ENDC
+                                break
+
+
+# fetch data
 response = bittrex.runner("getbalances", 0)
 parsed_balance = json.loads(response)
 
-response = bittrex.runner("getmarketsummary", "BTC-ARK")
-parsed_summary = json.loads(response)
+response = bittrex.runner("getmarketsummaries", 0)
+parsed_market = json.loads(response)
 
+# get order history
 response = bittrex.runner("getorderhistory", 0)
 parsed_orderhistory = json.loads(response)
 
+# create coinlist from balance
 for x in parsed_balance["result"][:]:
-    if x["Currency"] == "BTC" or x["Balance"] == 0.0:
-        continue
-    response = bittrex.runner("getmarketsummary", "BTC-" + x["Currency"])
-    parsed_market = json.loads(response)
-    response = bittrex.runner("getorderhistory", "BTC-" + x["Currency"])
-    parsed_order = json.loads(response)
+        if x["Balance"] == 0.0 or x["Currency"] == "BTC":
+                continue
+        name = x["Currency"]
+        balance = x["Balance"]
+        print "adding " + name + " with balance " + str(balance)
+        coinlist.append(coin(name, balance))
 
-    print "COIN :", x["Currency"], "BALANCE :", x["Balance"]
-    print "current price :", parsed_market["result"][0]["Last"]
+# fill coinlist with order history and current price - latest order is the first one
+for x in coinlist:
+        market_name = "BTC-" + x.name
+        for coin in parsed_market["result"]:
+                if market_name in coin["MarketName"]:
+                        x.current_price = float(coin["Last"])
+                        break
 
-    try:
-        buy_price = str(parsed_order["result"][0]["PricePerUnit"])
-        evolution = str((parsed_market["result"][0]["Last"] - parsed_order["result"][0]["PricePerUnit"]) / parsed_order["result"][0]["PricePerUnit"] * 100)
+        for order in parsed_orderhistory["result"]:
+                if market_name in order["Exchange"]:
+                        print "found one order for", market_name, "of type", order["OrderType"]
+                        x.orders.append(order)
 
-        print "buy price : " + buy_price
-        if float(evolution) > 0:
-            print bcolors.OKGREEN + "gain :" + evolution + bcolors.ENDC
-        else :
-            print bcolors.FAIL + "gain :" + evolution + bcolors.ENDC
-            
-    except:
-            print "no buy price"
-    print "\n"
-
-# todo :
-# - quick display (oneliner) of each owned coin
-# - get last order for each owned coin
-# - compare current price and buy price
-# - display variation
+for coin in coinlist:
+         coin.print_gain()
 
 ####################################################
 # print json.dumps(parsed, indent=4, sort_keys=True)
