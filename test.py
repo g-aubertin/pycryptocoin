@@ -2,9 +2,6 @@
 
 import bittrex, json
 
-print bittrex.API_KEY
-print bittrex.API_SECRET
-
 coinlist = []
 
 class bcolors:
@@ -34,10 +31,8 @@ class coin:
                 self.current_price = 0.0
 
         def print_gain(self):
-
-                gain = None
-                # get latest LIMIT_BUY
                 for order in self.orders:
+                        # get latest LIMIT_BUY
                         if order["OrderType"] == "LIMIT_BUY":
                                 buy_price = float(order["PricePerUnit"])
                                 gain = (self.current_price - buy_price) / buy_price * 100
@@ -48,6 +43,12 @@ class coin:
                                         print bcolors.FAIL + self.name + " : " + str(gain) + bcolors.ENDC
                                 break
 
+
+def compute_value(coinlist):
+        total = 0.0
+        for coin in coinlist:
+                total = total + (coin.current_price * coin.balance)
+        print "total value is " + str(total) + " BTC"
 
 # fetch data
 response = bittrex.runner("getbalances", 0)
@@ -62,14 +63,13 @@ parsed_orderhistory = json.loads(response)
 
 # create coinlist from balance
 for x in parsed_balance["result"][:]:
-        if x["Balance"] == 0.0 or x["Currency"] == "BTC":
+        if x["Balance"] == 0.0:
                 continue
         name = x["Currency"]
         balance = x["Balance"]
-        print "adding " + name + " with balance " + str(balance)
         coinlist.append(coin(name, balance))
 
-# fill coinlist with order history and current price - latest order is the first one
+# fill coinlist with order history and current price - latest order is first in the list
 for x in coinlist:
         market_name = "BTC-" + x.name
         for coin in parsed_market["result"]:
@@ -79,11 +79,13 @@ for x in coinlist:
 
         for order in parsed_orderhistory["result"]:
                 if market_name in order["Exchange"]:
-                        print "found one order for", market_name, "of type", order["OrderType"]
+
                         x.orders.append(order)
 
 for coin in coinlist:
-         coin.print_gain()
+        coin.print_gain()
+
+compute_value(coinlist)
 
 ####################################################
 # print json.dumps(parsed, indent=4, sort_keys=True)
