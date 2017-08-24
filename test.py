@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import bittrex, json
+import bittrex, json, time
 
 coinlist = []
 
@@ -44,48 +44,85 @@ class coin:
                                 break
 
 
-def compute_value(coinlist):
+def total_value(coinlist):
         total = 0.0
         for coin in coinlist:
                 total = total + (coin.current_price * coin.balance)
         print "total value is " + str(total) + " BTC"
 
-# fetch data
-response = bittrex.runner("getbalances", 0)
-parsed_balance = json.loads(response)
+def fetch_exchange():
+        # fetch data
+        response = bittrex.runner("getbalances", 0)
+        balance = json.loads(response)
 
-response = bittrex.runner("getmarketsummaries", 0)
-parsed_market = json.loads(response)
+        response = bittrex.runner("getmarketsummaries", 0)
+        market = json.loads(response)
 
-# get order history
-response = bittrex.runner("getorderhistory", 0)
-parsed_orderhistory = json.loads(response)
+        # get order history
+        response = bittrex.runner("getorderhistory", 0)
+        orderhistory = json.loads(response)
 
-# create coinlist from balance
-for x in parsed_balance["result"][:]:
-        if x["Balance"] == 0.0:
-                continue
-        name = x["Currency"]
-        balance = x["Balance"]
-        coinlist.append(coin(name, balance))
+        return balance, market, orderhistory
 
-# fill coinlist with order history and current price - latest order is first in the list
-for x in coinlist:
-        market_name = "BTC-" + x.name
-        for coin in parsed_market["result"]:
-                if market_name in coin["MarketName"]:
-                        x.current_price = float(coin["Last"])
-                        break
+def create_coinlist():
+        # get data from exchange
+        balance, market, orderhistory = fetch_exchange()
+        
+        # create coinlist from balance
+        for x in balance["result"]:
+                if x["Balance"] == 0.0:
+                        continue
+                name = x["Currency"]
+                balance = x["Balance"]
+                coinlist.append(coin(name, balance))
+                print "new coin", name, "created with balance", balance
 
-        for order in parsed_orderhistory["result"]:
-                if market_name in order["Exchange"]:
+        # fill coinlist with order history and current price - latest order is first in the list
+        for x in coinlist:
+                market_name = "BTC-" + x.name
+                for new_coin in market["result"]:
+                        if market_name in new_coin["MarketName"]:
+                                x.current_price = float(new_coin["Last"])
+                                break
 
-                        x.orders.append(order)
+                        for order in orderhistory["result"]:
+                                if market_name in order["Exchange"]:
+                                        x.orders.append(order)
 
-for coin in coinlist:
-        coin.print_gain()
+def update_coinlist():
+        # get data from exchange
+        balance, market, orderhistory = fetch_exchange()
 
-compute_value(coinlist)
+        # check for new coins
+        for x in balance["result"]:
+                name = x["Currency"]
+                balance = x["Balance"]
+                # test if no balance or already created coin object
+                if balance == 0.0 :
+                        print "no balance for", name
+                        continue
+                for x in coinlist:
+                        if x.name == name:
+                                print "coin", name, "already created"
+                                continue
+                coinlist.append(coin(name, balance))
+                print "new coin", name, "has been added to the wallet"
+
+        # sort list based on coin names
+        coinlist.sort(key=lambda x: x.name)
+        
+
+if __name__ == '__main__':
+
+        create_coinlist()
+
+        while True:
+                for x in coinlist:
+                        x.print_gain()
+                total_value(coinlist)
+                update_coinlist()
+                time.sleep(2)
+        
 
 ####################################################
 # print json.dumps(parsed, indent=4, sort_keys=True)
