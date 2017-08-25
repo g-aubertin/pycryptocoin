@@ -43,7 +43,6 @@ class coin:
                                         print bcolors.FAIL + self.name + " : " + str(gain) + bcolors.ENDC
                                 break
 
-
 def total_value(coinlist):
         total = 0.0
         for coin in coinlist:
@@ -67,7 +66,7 @@ def fetch_exchange():
 def create_coinlist():
         # get data from exchange
         balance, market, orderhistory = fetch_exchange()
-        
+
         # create coinlist from balance
         for x in balance["result"]:
                 if x["Balance"] == 0.0:
@@ -99,18 +98,19 @@ def update_coinlist():
                 balance = x["Balance"]
                 # test if no balance or already created coin object
                 if balance == 0.0 :
-                        print "no balance for", name
+                        #print "no balance for", name
                         continue
                 for x in coinlist:
                         if x.name == name:
-                                print "coin", name, "already created"
-                                continue
-                coinlist.append(coin(name, balance))
-                print "new coin", name, "has been added to the wallet"
+                                #print "coin", name, "already created, updating only balance"
+                                x.balance = float(balance)
+                                break
+                else:
+                        coinlist.append(coin(name, balance))
+                        print "new coin", name, "has been added to the wallet"
 
         # sort list based on coin names
         coinlist.sort(key=lambda x: x.name)
-        
 
 if __name__ == '__main__':
 
@@ -121,8 +121,7 @@ if __name__ == '__main__':
                         x.print_gain()
                 total_value(coinlist)
                 update_coinlist()
-                time.sleep(2)
-        
+                time.sleep(60)
 
 ####################################################
 # print json.dumps(parsed, indent=4, sort_keys=True)
