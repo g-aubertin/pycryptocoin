@@ -23,7 +23,8 @@ class coin:
         name: coin name.
         balance: current balance in wallet.
         current_price: current price on the market
-        orders: list of dictionnaries, each discribing a buy or a sell
+        orders: order history
+        open_orders: 
     """
 
         def __init__(self, name, balance):
@@ -31,6 +32,7 @@ class coin:
                 self.balance = float(balance)
                 self.orders = []
                 self.current_price = 0.0
+                self.open_orders = []
 
         def print_gain(self):
                 for order in self.orders:
@@ -43,8 +45,11 @@ class coin:
                                         print bcolors.OKGREEN + self.name + " : " + str(gain) + bcolors.ENDC
                                 else :
                                         print bcolors.FAIL + self.name + " : " + str(gain) + bcolors.ENDC
-                                break
+                                return gain
 
+
+
+                        
 def total_value(coinlist):
         total = 0.0
         for coin in coinlist:
@@ -52,6 +57,9 @@ def total_value(coinlist):
         print "total value is " + str(total) + " BTC"
 
 def fetch_exchange():
+
+        start_time = time.time()
+        
         # fetch data
         response = bittrex.runner("getbalances", 0)
         balance = json.loads(response)
@@ -63,12 +71,22 @@ def fetch_exchange():
         response = bittrex.runner("getorderhistory", 0)
         orderhistory = json.loads(response)
 
-        return balance, market, orderhistory
+        # get open orders
+        response = bittrex.runner("getopenorders", 0)
+        openorders = json.loads(response)
+
+        end_time = time.time()
+        print("fetch_exchange execution time : %g seconds" % (end_time - start_time))
+
+
+        return balance, market, orderhistory, openorders
 
 def create_coinlist():
         # get data from exchange
-        balance, market, orderhistory = fetch_exchange()
+        balance, market, orderhistory, openorders = fetch_exchange()
 
+        start_time = time.time()
+        
         # create coinlist from balance
         for x in balance["result"]:
                 if x["Balance"] == 0.0 or x["Currency"] in blacklist:
@@ -78,22 +96,36 @@ def create_coinlist():
                 coinlist.append(coin(name, balance))
                 print "new coin", name, "created with balance", balance
 
-        # fill coinlist with order history and current price - latest order is first in the list
+        # fill coinlist with order history, open orders and current price - latest order is first in the list
         for x in coinlist:
                 market_name = "BTC-" + x.name
+#                print "filling for", market_name
+
                 for new_coin in market["result"]:
                         if market_name in new_coin["MarketName"]:
                                 x.current_price = float(new_coin["Last"])
                                 break
 
-                        for order in orderhistory["result"]:
-                                if market_name in order["Exchange"]:
-                                        x.orders.append(order)
+                for order in orderhistory["result"]:
+                        if market_name in order["Exchange"]:
+#                                print "adding new orderhistory"
+                                x.orders.append(order)
+
+                for order in openorders["result"]:
+                        if market_name in order["Exchange"]:
+                                x.open_orders.append(order)
+ #                               print "adding open order"
+
+        end_time = time.time()
+        print("coinlist creation execution time : %g seconds" % (end_time - start_time))
+
 
 def update_coinlist():
         # get data from exchange
-        balance, market, orderhistory = fetch_exchange()
+        balance, market, orderhistory, openorders = fetch_exchange()
 
+        start_time = time.time()
+        
         # check for new coins
         for x in balance["result"]:
                 name = x["Currency"]
@@ -114,22 +146,55 @@ def update_coinlist():
         # sort list based on coin names
         coinlist.sort(key=lambda x: x.name)
 
-if __name__ == '__main__':
+        end_time = time.time()
+        print("coinlist update execution time : %g seconds" % (end_time - start_time))
 
+
+
+def autotrade(tradelist, rule_low, rule_high):
+        print""
+        print"########## AUTOTRADE ##########"
+
+        for coin in coinlist:
+                if coin.name in tradelist:
+                        gain = coin.print_gain()
+                        if gain < rule_low:
+                                print "coin", coin.name, "is below 5%, selling"
+                        if gain > rule_high:
+                                print "coin", coin.name, "is above 10%, selling"
+
+        print"######## END AUTOTRADE ########"
+        print ""
+
+if __name__ == '__main__':
 
         config = ConfigParser.ConfigParser()
         config.read('config.ini')
+
         blacklist = config.get('ignore', 'currencies')
         blacklist = blacklist.split(',')
         print "blacklist: ", blacklist
 
+        tradelist = config.get('autotrade', 'currencies')
+        tradelist = tradelist.split(',')
+        print "tradelist: ", tradelist
+
+        rule_low = float(config.get('rules', 'low'))
+        rule_high = float(config.get('rules', 'high'))
+        print "rules - low:", rule_low, ", high:", rule_high
+
         create_coinlist()
 
         while True:
+
+                update_coinlist()
+
                 for x in coinlist:
                         x.print_gain()
                 total_value(coinlist)
-                update_coinlist()
+
+                autotrade(tradelist, rule_low, rule_high)
+
                 time.sleep(60)
 
 ####################################################
