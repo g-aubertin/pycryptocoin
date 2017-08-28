@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 import bittrex, json, time
+import ConfigParser
 
 coinlist = []
+blacklist = []
 
 class bcolors:
         HEADER = '\033[95m'
@@ -69,7 +71,7 @@ def create_coinlist():
 
         # create coinlist from balance
         for x in balance["result"]:
-                if x["Balance"] == 0.0:
+                if x["Balance"] == 0.0 or x["Currency"] in blacklist:
                         continue
                 name = x["Currency"]
                 balance = x["Balance"]
@@ -97,7 +99,7 @@ def update_coinlist():
                 name = x["Currency"]
                 balance = x["Balance"]
                 # test if no balance or already created coin object
-                if balance == 0.0 :
+                if balance == 0.0 or name in blacklist:
                         #print "no balance for", name
                         continue
                 for x in coinlist:
@@ -113,6 +115,13 @@ def update_coinlist():
         coinlist.sort(key=lambda x: x.name)
 
 if __name__ == '__main__':
+
+
+        config = ConfigParser.ConfigParser()
+        config.read('config.ini')
+        blacklist = config.get('ignore', 'currencies')
+        blacklist = blacklist.split(',')
+        print "blacklist: ", blacklist
 
         create_coinlist()
 
