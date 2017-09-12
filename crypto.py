@@ -1,5 +1,8 @@
 import time, json, bittrex
 
+# iteration rate in seconds
+tick = 30
+
 class bcolors:
         HEADER = '\033[95m'
         OKBLUE = '\033[94m'
@@ -41,7 +44,29 @@ class coin:
                                 else :
                                         print bcolors.FAIL + self.name + " : " + str(gain) + bcolors.ENDC
                                 return gain
+                        
+#        def print_trend(self):
+                # calculate evolution based on value 5 minutes if available
+                # otherwise, calculate with older value.
+                # tick value is used to decide which summary to use to get to 5 minutes
+#                iterations = 300 / tick
+#                last_price = float(self.coin_summaries[0]["Last"])
+#                print "current price:", last_price
+                
+#                if len(self.coin_summaries) < iterations:
+#                        base_price = float(self.coin_summaries[-1]["Last"])
 
+#                else:
+#                        base_price = float(self.coin_summaries[iterations]["Last"])
+
+ #               print "base price:", base_price
+
+#                evolution = (last_price - base_price) / base_price * 100
+ #               if float(evolution) > 0:
+ #                       print bcolors.OKGREEN + self.name + " evolution over 5 minutes : " + str(evolution) + bcolors.ENDC
+#                else :
+                        #print bcolors.FAIL + self.name + " evolution over 5 minutes : " + str(evolution) + bcolors.ENDC
+                        
 class bittrex_wallet:
         """bittrex wallet
 
@@ -74,7 +99,6 @@ class bittrex_wallet:
 
                 # fill coinlist with order history, open orders and market summary
                 # for orders and history, latest comes first in the list
-                # for market summary, only one to append. next iterations will 'insert' in first position
                 for newcoin in self.coinlist:
 
 #                        if newcoin.name == "BTC":
@@ -82,12 +106,12 @@ class bittrex_wallet:
 #                                continue
 
                         market_name = "BTC-" + newcoin.name
-
+                        
                         for entry in self.market["result"]:
                                 if market_name in entry["MarketName"]:
                                         newcoin.coin_summaries.append(entry)
+                                        print "adding new market entry:"
                                         print json.dumps(entry, indent=4, sort_keys=True)
-                                        break
 
                         for order in self.orderhistory["result"]:
                                 if market_name in order["Exchange"]:
@@ -96,6 +120,18 @@ class bittrex_wallet:
                         for order in self.openorders["result"]:
                                 if market_name in order["Exchange"]:
                                         newcoin.open_orders.append(order)
+
+                # debug
+                for newcoin in self.coinlist:
+                        print "##### name: ", newcoin.name
+                        print "balance:", newcoin.balance
+                        print "summaries:"
+                        print json.dumps(newcoin.coin_summaries, indent=4, sort_keys=True)
+                        print "=== executed orders:"  
+                        print json.dumps(newcoin.orders, indent=4, sort_keys=True)
+                        print "=== open orders:"  
+                        print json.dumps(newcoin.open_orders, indent=4, sort_keys=True)
+                        
                                         
         # update coinlist
         def update(self):
@@ -127,33 +163,27 @@ class bittrex_wallet:
                                         print "removing", name, "from coinlist"
                                         coinlist.remove(entry)
                 
-                # update summaries
-                for x in self.coinlist:
-                        market_name = "BTC-" + x.name
+                # coinlist is now up-to-date, updating attributes
+                for newcoin in self.coinlist:
+
+                        market_name = "BTC-" + newcoin.name
+
                         for entry in self.market["result"]:
                                 if market_name in entry["MarketName"]:
-                                        x.coin_summaries.insert(0, entry)
-                                        break
+                                        newcoin.coin_summaries.append(entry)
 
+                        del newcoin.orders[:]
+                        for order in self.orderhistory["result"]:
+                                if market_name in order["Exchange"]:
+                                        newcoin.orders.append(order)
 
-                # update order history and open orders
-                # TODO
-                for x in self.coinlist:
-                        market_name = "BTC-" + x.name
-                        for entry in self.orderhistory["result"]:
-                                if entry not in x.orders:
-                                        x.orders.insert(0, entry)
-                                        print "adding new orderhistory for", market_name
-                        for entry in self.openorders["result"]:
-                                if entry not in x.open_orders:
-                                        x.open_orders.insert(0, entry)
-                                        print "adding new openorder for", market_name
-                        
-
+                        del newcoin.open_orders[:]
+                        for order in self.openorders["result"]:
+                                if market_name in order["Exchange"]:
+                                        newcoin.open_orders.append(order)
                 
                 # sort list based on coin names
                 self.coinlist.sort(key=lambda x: x.name)
-
 
         # get data from exchange
         def fetch_data(self):
@@ -174,10 +204,6 @@ class bittrex_wallet:
                 end_time = time.time()
                 print("fetch_exchange execution time : %g seconds" % (end_time - start_time))
 
-
-
-                
-
         # calculate current wallet value in BTC
         def value(self):
                 total = 0.0
@@ -187,5 +213,8 @@ class bittrex_wallet:
 
         # print gains for each coin with positive balance
         def summary(self):
+                print "### current gains ###"
                 for coin in self.coinlist:
                         coin.print_gain()
+#                        coin.print_trend()
+                print "#####################"

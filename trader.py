@@ -40,11 +40,11 @@ if __name__ == '__main__':
 
         while True:
 
-                wallet.update()
                 wallet.summary()
                 wallet.value()
-
-                time.sleep(60)
+                print""
+                time.sleep(30)
+                wallet.update()
 
 ####################################################
 # print json.dumps(parsed, indent=4, sort_keys=True)
