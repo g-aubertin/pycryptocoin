@@ -44,29 +44,7 @@ class coin:
                                 else :
                                         print bcolors.FAIL + self.name + " : " + str(gain) + bcolors.ENDC
                                 return gain
-                        
-#        def print_trend(self):
-                # calculate evolution based on value 5 minutes if available
-                # otherwise, calculate with older value.
-                # tick value is used to decide which summary to use to get to 5 minutes
-#                iterations = 300 / tick
-#                last_price = float(self.coin_summaries[0]["Last"])
-#                print "current price:", last_price
-                
-#                if len(self.coin_summaries) < iterations:
-#                        base_price = float(self.coin_summaries[-1]["Last"])
 
-#                else:
-#                        base_price = float(self.coin_summaries[iterations]["Last"])
-
- #               print "base price:", base_price
-
-#                evolution = (last_price - base_price) / base_price * 100
- #               if float(evolution) > 0:
- #                       print bcolors.OKGREEN + self.name + " evolution over 5 minutes : " + str(evolution) + bcolors.ENDC
-#                else :
-                        #print bcolors.FAIL + self.name + " evolution over 5 minutes : " + str(evolution) + bcolors.ENDC
-                        
 class bittrex_wallet:
         """bittrex wallet
 
@@ -78,24 +56,33 @@ class bittrex_wallet:
         openorders: on-going orders
     """
 
-        def __init__(self, blacklist):
+        def __init__(self, blacklist, full=None):
                 self.coinlist = []
                 self.balance = []
-                self.marketsummaries = []
+                self.market = []
                 self.orderhistory = []
                 self.openorders = []
                 self.blacklist = blacklist
 
                 self.fetch_data()
 
-                # create coinlist from balance
-                for x in self.balance["result"]:
-                        if x["Balance"] == 0.0 or x["Currency"] in self.blacklist:
-                                continue
-                        name = x["Currency"]
-                        balance = x["Balance"]
-                        self.coinlist.append(coin(name, balance))
-                        print "new coin", name, "created with balance", balance
+                if full is True:
+                        for x in self.market["result"]:
+                                if "BTC-" in x["Market"]["MarketName"]:
+                                        name = x["Market"]["MarketCurrency"]
+                                        self.coinlist.append(coin(name, 0))
+                                        print "appending", name
+                        return
+
+                else:
+                        # create coinlist from balance
+                        for x in self.balance["result"]:
+                                if x["Balance"] == 0.0 or x["Currency"] in self.blacklist:
+                                        continue
+                                name = x["Currency"]
+                                balance = x["Balance"]
+                                self.coinlist.append(coin(name, balance))
+                                print "new coin", name, "created with balance", balance
 
                 # fill coinlist with order history, open orders and market summary
                 # for orders and history, latest comes first in the list
@@ -106,9 +93,9 @@ class bittrex_wallet:
 #                                continue
 
                         market_name = "BTC-" + newcoin.name
-                        
+
                         for entry in self.market["result"]:
-                                if market_name in entry["MarketName"]:
+                                if market_name in entry["Market"]:
                                         newcoin.coin_summaries.append(entry)
                                         print "adding new market entry:"
                                         print json.dumps(entry, indent=4, sort_keys=True)
@@ -127,12 +114,12 @@ class bittrex_wallet:
                         print "balance:", newcoin.balance
                         print "summaries:"
                         print json.dumps(newcoin.coin_summaries, indent=4, sort_keys=True)
-                        print "=== executed orders:"  
+                        print "=== executed orders:"
                         print json.dumps(newcoin.orders, indent=4, sort_keys=True)
-                        print "=== open orders:"  
+                        print "=== open orders:"
                         print json.dumps(newcoin.open_orders, indent=4, sort_keys=True)
-                        
-                                        
+
+
         # update coinlist
         def update(self):
 
@@ -152,7 +139,7 @@ class bittrex_wallet:
                         else:
                                 self.coinlist.append(coin(name, balance))
                                 print "new coin", name, "has been added to the wallet"
-                                
+
 
                 # check for removed coins
                 for entry in self.coinlist[:]:
@@ -162,7 +149,7 @@ class bittrex_wallet:
                                 if name == entry.name and balance == 0.0:
                                         print "removing", name, "from coinlist"
                                         coinlist.remove(entry)
-                
+
                 # coinlist is now up-to-date, updating attributes
                 for newcoin in self.coinlist:
 
@@ -181,7 +168,7 @@ class bittrex_wallet:
                         for order in self.openorders["result"]:
                                 if market_name in order["Exchange"]:
                                         newcoin.open_orders.append(order)
-                
+
                 # sort list based on coin names
                 self.coinlist.sort(key=lambda x: x.name)
 
@@ -189,16 +176,16 @@ class bittrex_wallet:
         def fetch_data(self):
                 start_time = time.time()
 
-                response = bittrex.runner("getbalances", 0)
+                response = bittrex.runner("getbalances", 0, 0)
                 self.balance = json.loads(response)
 
-                response = bittrex.runner("getmarketsummaries", 0)
+                response = bittrex.runner("getmarketsummaries", 0, 0)
                 self.market = json.loads(response)
 
-                response = bittrex.runner("getorderhistory", 0)
+                response = bittrex.runner("getorderhistory", 0, 0)
                 self.orderhistory = json.loads(response)
 
-                response = bittrex.runner("getopenorders", 0)
+                response = bittrex.runner("getopenorders", 0, 0)
                 self.openorders = json.loads(response)
 
                 end_time = time.time()

@@ -28,11 +28,11 @@ else:
     API_SECRET = _config.get('bittrex', 'secret')
 
 
-GET_MARKETS_URI = "https://bittrex.com/api/v1.1/public/getmarkets"
-GET_CURRENCIES_URI = "https://bittrex.com/api/v1.1/public/getcurrencies"
+GET_MARKETS_URI = "https://bittrex.com/api/v2.0/pub/Markets/GetMarkets"
+GET_CURRENCIES_URI = "https://bittrex.com/api/v2.0/pub/Currencies/GetCurrencies"
 GET_TICKER = "https://bittrex.com/api/v1.1/public/getticker"
-GET_MARKET_SUMMARIES = "https://bittrex.com/api/v1.1/public/getmarketsummaries"
-GET_MARKET_SUMMARY = "https://bittrex.com/api/v1.1/public/getmarketsummary"
+GET_MARKET_SUMMARIES = "https://bittrex.com/api/v2.0/pub/Markets/GetMarketSummaries"
+GET_MARKET_SUMMARY = "https://bittrex.com/api/v2.0/pub/Market/GetMarketSummary"
 GET_ORDERBOOK = "https://bittrex.com/api/v1.1/public/getorderbook"
 GET_MARKET_HISTORY = "https://bittrex.com/api/v1.1/public/getmarkethistory"
 BUY_LIMIT = "https://bittrex.com/api/v1.1/market/buylimit"
@@ -47,6 +47,9 @@ GET_ORDER = "https://bittrex.com/api/v1.1/account/getorder"
 GET_ORDER_SUMMARY = "https://bittrex.com/api/v1.1/account/getorderhistory"
 WITHDRAW = "https://bittrex.com/api/v1.1/account/withdraw"
 
+#API V2.x
+GET_CANDLES = "https://bittrex.com/api/v2.0/pub/market/GetTicks"
+GET_LAST_CANDLE = "https://bittrex.com/api/v2.0/pub/market/GetLatestTick"
 
 def get(url, headers=None):
     """
@@ -102,6 +105,7 @@ class BittrexAPI(object):
         if public is False:
             params.update(self._auth_params)
         uri = format_uri(uri, params)
+        print uri
         if public is False:
             headers = self.api_headers(uri)
         if self._raw is True:
@@ -137,7 +141,7 @@ class BittrexAPI(object):
         return self._query(GET_MARKET_SUMMARIES, dict(), public=True)
 
     def getmarketsummary(self, market):
-        params = dict(market=market)
+        params = dict(marketName=market)
         return self._query(GET_MARKET_SUMMARY, params, public=True)
 
     def getorderbook(self, market, type_='both', depth='20'):
@@ -196,12 +200,24 @@ class BittrexAPI(object):
             params['paymentid'] = paymentid
         return self._query(WITHDRAW, params, public=False)
 
+    def getcandles(self, market, tick):
+        params = dict(marketName=market, tickInterval=tick)
+        return self._query(GET_CANDLES, params, public=True)
 
-def runner(order, market):
+    def getlastcandle(self, market, tick):
+        params = dict(marketName=market, tickInterval=tick)
+        return self._query(GET_LAST_CANDLE, params, public=True)
+
+
+
+
+def runner(order, market, tick):
     """
     Simple runner for the bittrex api methods.
     """
     bittrex = BittrexAPI(API_KEY, API_SECRET, raw=True)
+    if tick != 0:
+        return getattr(bittrex, order)(market,tick)
     if market != 0:
         return getattr(bittrex, order)(market)
     return getattr(bittrex, order)()

@@ -21,6 +21,8 @@ def autotrade(tradelist, rule_low, rule_high):
 
 if __name__ == '__main__':
 
+        '''
+        
         config = ConfigParser.ConfigParser()
         config.read('config.ini')
 
@@ -45,6 +47,25 @@ if __name__ == '__main__':
                 print""
                 time.sleep(30)
                 wallet.update()
+        '''
+
+        # API v2 test
+
+        wallet = crypto.bittrex_wallet(None, True)
+        '''
+        response = bittrex.runner("getcandles", "BTC-ETH", "thirtyMin")
+        parsed = json.loads(response)
+        print json.dumps(parsed, indent=4, sort_keys=True)
+
+        response = bittrex.runner("getmarketsummary", "BTC-ETH", 0)
+        parsed = json.loads(response)
+        print json.dumps(parsed, indent=4, sort_keys=True)
+
+        response = bittrex.runner("getlastcandle", "BTC-ETH", "thirtyMin")
+        parsed = json.loads(response)
+        print json.dumps(parsed, indent=4, sort_keys=True)
+        '''
+
 
 ####################################################
 # print json.dumps(parsed, indent=4, sort_keys=True)
